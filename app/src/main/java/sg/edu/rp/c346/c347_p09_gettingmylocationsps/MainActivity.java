@@ -35,8 +35,6 @@ public class MainActivity extends AppCompatActivity
   TextView tvLastKnown, tvLat;
   Button btnStart, btnStop, btnCheck;
   FusedLocationProviderClient client;
-  LocationRequest mLocationRequest;
-  LocationCallback mLocationCallback;
   double LAT_UPDATE, LONG_UPDATE;
 
   @Override
@@ -53,12 +51,9 @@ public class MainActivity extends AppCompatActivity
 
     // Location is triggered once upon display activity
     client = LocationServices.getFusedLocationProviderClient(this);
-    mLocationRequest = new LocationRequest();
-    mLocationCallback = new LocationCallback();
 
-    checkPermission();
-
-    if (checkPermission() == true){
+    // Check if permissions granted
+    if (checkPermission()){
       Task<Location> task = client.getLastLocation();
       task.addOnSuccessListener(MainActivity.this, new OnSuccessListener<Location>()
       {
@@ -82,59 +77,8 @@ public class MainActivity extends AppCompatActivity
       @Override
       public void onClick(View view)
       {
-        mLocationCallback = new LocationCallback(){
-          @Override
-          public void onLocationResult(LocationResult locationResult)
-          {
-            if(locationResult != null){
-              Location data = locationResult.getLastLocation();
-              LAT_UPDATE = data.getLatitude();
-              LONG_UPDATE = data.getLongitude();
-            }
-          }
-        };
-
-        // Detector detecting location change and recieve update
-        // Configurations
-        mLocationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
-        mLocationRequest.setInterval(10000);
-        mLocationRequest.setFastestInterval(50000);
-        mLocationRequest.setSmallestDisplacement(100);
-
         Intent i = new Intent(MainActivity.this, MyService.class);
         startService(i);
-
-        if(checkPermission()){
-          client.requestLocationUpdates(mLocationRequest, mLocationCallback, null);
-        }
-
-        if(checkPermission_Storage() == false){
-          Log.d("Service-Checkstorage", "Hello");
-          // Folder creation
-          String folderLocation = Environment.getExternalStorageDirectory().getAbsolutePath() + "/GettingMyLocation";
-          File folder = new File(folderLocation);
-          if(folder.exists() == false){
-            boolean result = folder.mkdir();
-            if (result == true){
-              Log.d("File read/write", "Folder created");
-            }
-
-            // File creation and writing
-            try{
-              File targetFile = new File(folderLocation, "problemstatement.txt");
-              FileWriter writer = new FileWriter(targetFile, true);
-              String data = LAT_UPDATE + ", " + LONG_UPDATE;
-              writer.write(data + "\n");
-              writer.flush();
-              writer.close();
-            }catch (Exception e){
-              Toast.makeText(MainActivity.this, "Failed to write", Toast.LENGTH_SHORT).show();
-              e.printStackTrace();
-            }
-          }
-        }
-
-        // Store location from detector into text file (WRITE)
       }
     });
 
@@ -145,13 +89,11 @@ public class MainActivity extends AppCompatActivity
       {
         Intent i = new Intent(MainActivity.this, MyService.class);
         stopService(i);
-
-        client.removeLocationUpdates(mLocationCallback);
       }
     });
 
 
-    // Check buttons will read the fire toast
+    // Check buttons will read the file and toast
     btnCheck.setOnClickListener(new View.OnClickListener()
     {
       @Override
@@ -159,12 +101,12 @@ public class MainActivity extends AppCompatActivity
       {
         // File reading
         String folderLocation = Environment.getExternalStorageDirectory().getAbsolutePath() + "/GettingMyLocation";
-        File targetFile2 = new File(folderLocation, "problemstatement.txt");
+        File targetFile = new File(folderLocation, "problemstatement.txt");
 
-        if(targetFile2.exists() == true){
+        if(targetFile.exists() == true){
           String data = "";
           try {
-            FileReader reader = new FileReader(targetFile2);
+            FileReader reader = new FileReader(targetFile);
             BufferedReader br = new BufferedReader(reader);
 
             String line = br.readLine();
@@ -191,18 +133,6 @@ public class MainActivity extends AppCompatActivity
     int permissionCheck_Fine = ContextCompat.checkSelfPermission(MainActivity.this, Manifest.permission.ACCESS_FINE_LOCATION);
 
     if (permissionCheck_Coarse == PermissionChecker.PERMISSION_GRANTED || permissionCheck_Fine == PermissionChecker.PERMISSION_GRANTED) {
-      return true;
-    } else {
-      return false;
-    }
-  }
-
-  private boolean checkPermission_Storage(){
-    int permissionCheck_Storage = ContextCompat.checkSelfPermission(MainActivity.this, Manifest.permission.WRITE_EXTERNAL_STORAGE);
-    if(permissionCheck_Storage != PermissionChecker.PERMISSION_GRANTED){
-      Toast.makeText(this, "Permission not granted", Toast.LENGTH_SHORT).show();
-      ActivityCompat.requestPermissions(MainActivity.this, new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, 0);
-      finish();
       return true;
     } else {
       return false;
