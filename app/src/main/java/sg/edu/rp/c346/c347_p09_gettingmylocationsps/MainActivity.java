@@ -4,6 +4,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.core.content.PermissionChecker;
+import androidx.fragment.app.FragmentManager;
 
 import android.Manifest;
 import android.content.Intent;
@@ -21,6 +22,13 @@ import com.google.android.gms.location.LocationCallback;
 import com.google.android.gms.location.LocationRequest;
 import com.google.android.gms.location.LocationResult;
 import com.google.android.gms.location.LocationServices;
+import com.google.android.gms.maps.GoogleMap;
+import com.google.android.gms.maps.OnMapReadyCallback;
+import com.google.android.gms.maps.SupportMapFragment;
+import com.google.android.gms.maps.model.BitmapDescriptorFactory;
+import com.google.android.gms.maps.model.LatLng;
+import com.google.android.gms.maps.model.Marker;
+import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.android.gms.tasks.Task;
 
@@ -37,6 +45,8 @@ public class MainActivity extends AppCompatActivity
   FusedLocationProviderClient client;
   double LAT_UPDATE, LONG_UPDATE;
 
+  private GoogleMap map;
+
   @Override
   protected void onCreate(Bundle savedInstanceState)
   {
@@ -52,24 +62,62 @@ public class MainActivity extends AppCompatActivity
     // Location is triggered once upon display activity
     client = LocationServices.getFusedLocationProviderClient(this);
 
-    // Check if permissions granted
-    if (checkPermission()){
-      Task<Location> task = client.getLastLocation();
-      task.addOnSuccessListener(MainActivity.this, new OnSuccessListener<Location>()
+
+
+    // Fragment map
+    FragmentManager fm = getSupportFragmentManager();
+    SupportMapFragment mapFragment = (SupportMapFragment) fm.findFragmentById(R.id.map);
+    // Set map
+    mapFragment.getMapAsync(new OnMapReadyCallback()
+    {
+      @Override
+      public void onMapReady(GoogleMap googleMap)
       {
-        @Override
-        public void onSuccess(Location location)
-        {
-          if(location != null){
-            String msg = "Latitude: " + location.getLatitude() + "\nLongitude: " + location.getLatitude();
-            tvLat.setText(msg);
-          } else {
-            String msg = "No last known location found";
-            tvLat.setText(msg);
-          }
+        map = googleMap;
+        // Check if permissions granted
+        if (checkPermission()){
+          Task<Location> task = client.getLastLocation();
+          task.addOnSuccessListener(MainActivity.this, new OnSuccessListener<Location>()
+          {
+            @Override
+            public void onSuccess(Location location)
+            {
+              if(location != null){
+                LAT_UPDATE = location.getLatitude();
+                LONG_UPDATE = location.getLongitude();
+
+                String msg = "Latitude: " + LAT_UPDATE + "\nLongitude: " + LONG_UPDATE;
+                Log.d("CHECK", "Lat: " + LAT_UPDATE + "long: " + LONG_UPDATE);
+                tvLat.setText(msg);
+              } else {
+                String msg = "No last known location found";
+                tvLat.setText(msg);
+              }
+            }
+          });
         }
-      });
-    }
+
+
+
+        int permissionCheck = ContextCompat.checkSelfPermission(MainActivity.this,
+                android.Manifest.permission.ACCESS_FINE_LOCATION);
+
+        if (permissionCheck == PermissionChecker.PERMISSION_GRANTED) {
+          map.setMyLocationEnabled(true);
+        } else {
+          Log.e("GMap - Permission", "GPS access has not been granted");
+          ActivityCompat.requestPermissions(MainActivity.this,
+                  new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, 0);
+        }
+        Log.d("CHECK2", "Lat: " + LAT_UPDATE + "long: " + LONG_UPDATE);
+        LatLng poi_userLastLoc = new LatLng(LAT_UPDATE, LONG_UPDATE);
+        Marker userLastKnown = map.addMarker(new
+                MarkerOptions()
+                .position(poi_userLastLoc)
+                .title("Lat: " + LAT_UPDATE + " Long: " + LONG_UPDATE)
+                .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_RED)));
+      }
+    });
 
     // Detector will run even when app close
     btnStart.setOnClickListener(new View.OnClickListener()
